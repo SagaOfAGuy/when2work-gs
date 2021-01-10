@@ -1,23 +1,21 @@
+// Main function 
 function main() 
 { 
   var filename = "Schedule.ics";
   var email = ""; 
   createICS(filename, email); 
-  
 }
 
-// Create ICS by searching through inbox and 
+// Create ICS file by searching through email inbox and extracting shift times from W2W email
 function createICS(filename, email) {
   try { 
     var targetEmails = searchEmail("W2W Schedule");
-   // Emails recieved from W2W 
 
    // Shifts extracted from W2W email
     var workShifts = getShifts(targetEmails);  
     var workShiftsString = workShifts.toString();
     var workShiftsArray = workShiftsString.split(/[m][,]/g);
     var years = workShiftsString.match(/\s[0-9][0-9][0-9][0-9]\s/g); 
-   
     var fileInfo = {
      title:`${filename}`,
     mimeType: 'text/calendar'
@@ -63,8 +61,7 @@ function sendICS(filename, email) {
   Drive.Files.remove(ICSFileID); 
 }
 
-
-// Get files in google drive
+// Get file ID in Google Drive based on file ID
 function getFileId(name) { 
   var files = DriveApp.getFiles(); 
   while(files.hasNext()) { 
@@ -86,7 +83,6 @@ function makeMilitary(timeBlock) {
   }
   return hour.toString() + minutes;   
 }
-
 
 // Return Beginning boilerplate for ICS file 
 function writeStart() { 
@@ -118,7 +114,6 @@ END:VTIMEZONE`
   return start;  
 }
 
-
 // Boilerplate for actual ICS content containing work shifts 
 function writeMiddle(summary, year, month, day, start, end) { 
   var middle = `BEGIN:VEVENT
@@ -142,7 +137,6 @@ END:VALARM
 END:VEVENT`
  return middle;  
 }
-
 
 // Convert month from text to number 
 function convertMonth(monthText) { 
@@ -169,7 +163,6 @@ function writeEnding() {
    return end; 
 }
 
-
 // Function for searching through email 
 function searchEmail(search)
 {
@@ -183,6 +176,7 @@ function searchEmail(search)
   }
   return email; 
 }
+
 // Extract shifts from targeted emails 
 function getShifts(emails) {
    var shifts_text = []
@@ -197,17 +191,11 @@ function getShifts(emails) {
     }
   return shifts_text; 
 }
+
+// Get the year of work shift
 function getYear(emails) { 
   for(var index = 0; index < emails.length; index++) { 
     var str = emails[index].getRawContent(); 
     return str; 
   }
-  
 }
-
-
-
-
-
-
-
