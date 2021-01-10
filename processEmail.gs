@@ -1,3 +1,4 @@
+// Listen for email containing shift times from when2work.com
 function listen() {
   var label = GmailApp.getUserLabelByName("Schedule");
   var threads = label.getThreads();  
