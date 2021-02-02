@@ -14,56 +14,82 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 // Main function 
 function main() 
 { 
   var filename = "Schedule.ics";
+  // Change this to the email you want When2Work ICS file emailed to
   var email = ""; 
-  createICS(filename, email); 
+  
+  var label = GmailApp.getUserLabelByName("Schedule");
+  var threads = label.getThreads();
+
+  //console.log(targetEmails); 
+  //console.log(workShifts); 
+
+  if(threads.length >= 1) {
+    createICS(filename, email); 
+    threads[0].removeLabel(label);  
+  }
+  else 
+  {
+    console.log("No email from W2W"); 
+  } 
 }
-
-// Create ICS file by searching through email inbox and extracting shift times from W2W email
-function createICS(filename, email) {
-  try { 
+// Create ICS by searching through inbox for emails from W2W 
+function createICS(filename, email) { 
+  try {
+    
+   // Emails recieved from W2W 
     var targetEmails = searchEmail("W2W Schedule");
-
    // Shifts extracted from W2W email
+    var regex = /\w\w\w\s([0-9]|[0-9][0-9])[,]\s[0-9][0-9][0-9][0-9]\s[-]\s([0-9]\w\w|[0-9][0-9]\w\w|[0-9][:][0-9][0-9]\w\w|[0-9][0-9][:][0-9][0-9]\w\w)\s\w\w\s([0-9]\w\w|[0-9][:][0-9][0-9]\w\w)/g
     var workShifts = getShifts(targetEmails);  
     var workShiftsString = workShifts.toString();
-    var workShiftsArray = workShiftsString.split(/[m][,]/g);
-    var years = workShiftsString.match(/\s[0-9][0-9][0-9][0-9]\s/g); 
-    var fileInfo = {
-     title:`${filename}`,
-    mimeType: 'text/calendar'
-    }; 
+    var workShiftsArray = workShiftsString.match(regex);
+    var years = workShiftsString.match(/\s[0-9][0-9][0-9][0-9]\s/g);  
+
+     
    var startFile = writeStart() +"\n";
    var string = ``; 
    string += startFile;
    for (var index = 0; index < workShiftsArray.length; index++) {
      var block = workShiftsArray[index].split('-');
      var year = years[index].toString(); 
-     var timeBlock = block[1].split('to');
-     var monthDateBlock = block[0]; 
+     var timeBlock = block[1]; 
+     var monthDateBlock = block[0].toString(); 
      var month = convertMonth(monthDateBlock.substring(0,3)); 
+     var splitTime = timeBlock.split('to'); 
      var dayRegexResult = monthDateBlock.match(/([0-9]|[0-9][0-9])[,]/g)
      var day = dayRegexResult.toString().padStart(3,'0').substring(0,2); 
-     var start = makeMilitary(timeBlock[0]).padStart(4,'0'); 
-     var end = makeMilitary(timeBlock[1]).padStart(4,'0');
+     
+     var startShift = splitTime[0];  
+     var endShift = splitTime[1]; 
+  
+     var start = makeMilitary(startShift);  
+     var end = makeMilitary(endShift); 
+    
      string += writeMiddle('VCU',year.trim(),month, day, start, end);
-     string += "\n"
+     string += "\n"; 
    }
+   var fileInfo = {
+     title:`${filename}`,
+     mimeType: 'text/calendar'
+    };
    var endFile = writeEnding(); 
-   string += endFile; 
+   string += endFile;  
    var blob = Utilities.newBlob(string); 
    Drive.Files.insert(fileInfo, blob);
-   var filename = "Schedule.ics"; 
-   sendICS(filename, email); 
+   sendICS(filename, email);
+   console.log("ICS file sent!"); 
   }
- catch(err) { 
-  Logger.log("Email does not exist"); 
-  return ; 
- }
+  catch(err) {
+    Logger.log("Email does not exist"); 
+    Logger.log(err);
+    // Put your email below no W2W email is received 
+    MailApp.sendEmail(email, 'Alert', 'No W2W email'); 
+    return ; 
+  }
 }
 
 // Send the ICS File via email
@@ -77,8 +103,7 @@ function sendICS(filename, email) {
   }); 
   Drive.Files.remove(ICSFileID); 
 }
-
-// Get file ID in Google Drive based on file ID
+// Get files in google drive
 function getFileId(name) { 
   var files = DriveApp.getFiles(); 
   while(files.hasNext()) { 
@@ -90,17 +115,39 @@ function getFileId(name) {
     }    
   }
 }
-
 // Convert Times into military time 
 function makeMilitary(timeBlock) { 
-  var hour = Number(timeBlock.substring(0,2));
-  var minutes = timeBlock.substring(3,5); 
-  if(timeBlock.includes("p")) { 
-     hour += 12; 
+  // Variables
+  var regex = null
+  var hourText = ''
+  var hour = ''; 
+  var minutes = '00'; 
+  var totalTime = ''; 
+ 
+  // Conditionals 
+  var isPM = timeBlock.includes("p");
+  var notNoon = null 
+  var minutesIndex = timeBlock.indexOf(":"); 
+  var noMinutes = timeBlock.indexOf(":") == -1; 
+  
+  
+  if(noMinutes) {
+    regex = /([0-9][0-9]|[0-9])/g
+    hourText = timeBlock.match(regex); 
+    hour = Number(hourText); 
   }
-  return hour.toString() + minutes;   
+  else {
+  	hourText = timeBlock.substring(0,minutesIndex); 
+    hour = Number(hourText); 
+    minutes = timeBlock.substring(minutesIndex+1,minutesIndex+3);
+  }
+  notNoon = hour != 12; 
+  if(isPM && notNoon) {
+  	hour += 12; 
+  }
+  totalTime = `${hour}${minutes}`; 
+  return totalTime.padStart(4,'0'); 
 }
-
 // Return Beginning boilerplate for ICS file 
 function writeStart() { 
   var start = `BEGIN:VCALENDAR
@@ -130,7 +177,6 @@ END:STANDARD
 END:VTIMEZONE`
   return start;  
 }
-
 // Boilerplate for actual ICS content containing work shifts 
 function writeMiddle(summary, year, month, day, start, end) { 
   var middle = `BEGIN:VEVENT
@@ -154,7 +200,6 @@ END:VALARM
 END:VEVENT`
  return middle;  
 }
-
 // Convert month from text to number 
 function convertMonth(monthText) { 
    var months = {
@@ -173,17 +218,15 @@ function convertMonth(monthText) {
     }
    return months[monthText]; 
 }
-
 // Return ending boilerplate for ICS file 
 function writeEnding() { 
    var end = 'END:VCALENDAR';
    return end; 
 }
-
 // Function for searching through email 
 function searchEmail(search)
 {
-  var threads = GmailApp.getInboxThreads(0, 10);
+  var threads = GmailApp.getInboxThreads(0, 1);
   for (var i = 0; i < threads.length; i++) 
   {
     if(threads[i].getFirstMessageSubject() == search)
@@ -193,7 +236,6 @@ function searchEmail(search)
   }
   return email; 
 }
-
 // Extract shifts from targeted emails 
 function getShifts(emails) {
    var shifts_text = []
@@ -208,11 +250,9 @@ function getShifts(emails) {
     }
   return shifts_text; 
 }
-
-// Get the year of work shift
 function getYear(emails) { 
   for(var index = 0; index < emails.length; index++) { 
     var str = emails[index].getRawContent(); 
     return str; 
-  }
+  } 
 }
