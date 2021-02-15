@@ -78,7 +78,7 @@ function writeShifts(workShiftsObject) {
   try {
   let shifts = workShiftsObject.shifts;
   let string = ``; 
-  let subject = 'VCU Schedule | New Shift(s)'; 
+  let subject = 'Schedule | New Shift(s)'; 
   let fileHeading = writeStart() + "\n"; 
   let fileEnding = writeEnding(); 
   let indexMap = {monthIndex:0,dayIndex:1,yearIndex:2,startIndex:4,endIndex:6};
@@ -87,14 +87,14 @@ function writeShifts(workShiftsObject) {
       indexMap.startIndex = 12;
       indexMap.endIndex =  14; 
       if(workShiftsObject.type == 'cancelled') {
-        subject = 'VCU Schedule | Shifts Cancelled';  
+        subject = 'Schedule | Shifts Cancelled';  
         // Email goes below
-        MailApp.sendEmail('',subject, `These VCU Work shifts been Cancelled:\n\n${shifts}`);  
+        MailApp.sendEmail('',subject, `These Work shifts been Cancelled:\n\n${shifts}`);  
         Logger.log("Shift Cancellation Email Sent"); 
         return ; 
       }
       else {
-        subject = 'VCU Schedule | Shift Change'; 
+        subject = 'Schedule | Shift Change'; 
       }
     }  
     string += fileHeading; 
@@ -105,7 +105,7 @@ function writeShifts(workShiftsObject) {
       let year = shiftPieces[indexMap.yearIndex]; 
       let startShift = makeMilitary(shiftPieces[indexMap.startIndex]); 
       let endShift = makeMilitary(shiftPieces[indexMap.endIndex]); 
-      string += writeMiddle('VCU',year.trim(),month,day,startShift,endShift); 
+      string += writeMiddle('Work',year.trim(),month,day,startShift,endShift); 
       string += "\n"; 
     }
     string += fileEnding; 
@@ -132,7 +132,7 @@ function createICS(filename,obj) {
 function sendICS(filename, subject, email) {
   let ICSFileID = getFileId(filename);
   let ICSFile = DriveApp.getFileById(ICSFileID);
-  MailApp.sendEmail(`${email}`,subject,'VCU Schedule',{
+  MailApp.sendEmail(`${email}`,subject,'Work Schedule',{
     attachments: [ICSFile],
     name: 'Attachment'
   }); 
