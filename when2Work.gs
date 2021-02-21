@@ -25,25 +25,24 @@
 /**
  * DEPENDENCIES
  * ------------
- *  - Create a 'Schedule' Label
- *  - Create a Label filter for emails that contain the subject line 'A Change To Your Schedule' and 'W2W Schedule'
+ *  - Create a 'Schedule' Label that filters emails that contain the subject line 'A Change To Your Schedule' and 'W2W Schedule'
  * 
  */
-// Entry point 
 function main() {
-    let label = GmailApp.getUserLabelByName("Schedule");
-    let threads = label.getThreads();
+    var label = GmailApp.getUserLabelByName("Schedule");
+    var threads = label.getThreads();
+    Logger.log(threads.length); 
     if(threads.length >= 1) {
+
           let workShiftsObject = getWorkShifts(); 
           let shifts = workShiftsObject.shifts; 
           let shiftsString = writeShifts(workShiftsObject);
           if(shifts == undefined || shifts == '' || shifts == null || shiftsString == undefined) {
-            Logger.log("No new Shits(s) from When2Work.com"); 
+            Logger.log("No new Shifts(s) from When2Work.com"); 
           }
           else {
             createICS('Schedule.ics',shiftsString); 
-            // Email goes below
-            sendICS('Schedule.ics', shiftsString.subjectString, ''); 
+            sendICS('Schedule.ics', shiftsString.subjectString, '');  // Email goes in 3rd position
           }
           threads[0].removeLabel(label); 
     }
@@ -54,14 +53,15 @@ function main() {
 function getWorkShifts(){
   let messageContent = createMessageString(0,1); 
   let regex; 
-  let updatedWorkShifts = (messageContent.includes("shifts has changed"));    
-  let cancelledWorkShifts =  (messageContent.includes("no longer")); 
-  let newWorkShifts = (messageContent.includes("new")); 
+  let updatedWorkShifts = messageContent.includes("shifts has changed");    
+  let cancelledWorkShifts =  messageContent.includes("no longer"); 
+  let newWorkShifts = messageContent.includes("new"); 
   let emailType = '';
-  if(updatedWorkShifts) {regex = /\w\w\w\s([0-9][0-9]|[0-9])\w[,]\s[0-9][0-9][0-9][0-9]\s\s\s\s\s\s\w\w\w\s\w\w\w\w\s\w\w\w\w\w\s\s\s\s\s\s([0-9][0-9]|[0-9]|[0-9][0-9][:][0-9][0-9]|[0-9][:][0-9][0-9])(\w\w)\s\w\w\s([0-9][0-9][:][0-9][0-9]|[0-9][:][0-9][0-9]|[0-9][0-9]|[0-9])(\w\w|\w)/g; emailType='update'}; 
-  if(newWorkShifts) {regex = /\w\w\w\s([0-9]|[0-9][0-9])[,]\s[0-9][0-9][0-9][0-9]\s[-]\s([0-9]\w\w|[0-9][0-9]\w\w|[0-9][:][0-9][0-9]\w\w|[0-9][0-9][:][0-9][0-9]\w\w)\s\w\w\s([0-9]\w\w|[0-9][:][0-9][0-9]\w\w)/g; emailType='new'}; 
-  if(cancelledWorkShifts) {regex = /\w\w\w\s([0-9]|[0-9][0-9])[,]\s[0-9][0-9][0-9][0-9]\s\s\s\s\s\s\w\w\w\s\w\w\w\w\s\w\w\w\w\w\s\s\s\s\s\s([0-9][0-9]|[0-9])[:][0-9][0-9]\w\s\w\w\s([0-9][0-9]|[0-9])[:][0-9][0-9]\w/g; emailType='cancelled'};
-  let shiftMatches = messageContent.match(regex); 
+  let colIndex = messageContent.indexOf(":"); 
+  let shiftMatches = messageContent.substring(colIndex+2,colIndex+69); 
+  if(cancelledWorkShifts) {let dayIndex = messageContent.lastIndexOf("day"); emailType='cancelled'};
+  if(updatedWorkShifts) {regex = /\w\w\w\s([0-9][0-9]|[0-9])\w[,]\s[0-9][0-9][0-9][0-9]\s\s\s\s\s\s\w\w\w\s\w\w\w\w\s\w\w\w\w\w\s\s\s\s\s\s([0-9][0-9]|[0-9]|[0-9][0-9][:][0-9][0-9]|[0-9][:][0-9][0-9])(\w\w)\s\w\w\s([0-9][0-9][:][0-9][0-9]|[0-9][:][0-9][0-9]|[0-9][0-9]|[0-9])(\w\w|\w)/g; emailType='update'; shiftMatches = messageContent.match(regex);}; 
+  if(newWorkShifts) {regex = /\w\w\w\s([0-9]|[0-9][0-9])[,]\s[0-9][0-9][0-9][0-9]\s[-]\s([0-9]\w\w|[0-9][0-9]\w\w|[0-9][:][0-9][0-9]\w\w|[0-9][0-9][:][0-9][0-9]\w\w)\s\w\w\s([0-9]\w\w|[0-9][:][0-9][0-9]\w\w)/g; emailType='new'; shiftMatches = messageContent.match(regex);}; 
   let shiftMatchesObject = {shifts:shiftMatches,type:emailType}
   return shiftMatchesObject; 
 }
@@ -76,25 +76,24 @@ function createMessageString(start,end) {
 }
 function writeShifts(workShiftsObject) {
   try {
-  let shifts = workShiftsObject.shifts;
-  let string = ``; 
-  let subject = 'Schedule | New Shift(s)'; 
-  let fileHeading = writeStart() + "\n"; 
-  let fileEnding = writeEnding(); 
-  let indexMap = {monthIndex:0,dayIndex:1,yearIndex:2,startIndex:4,endIndex:6};
-  let stringObject; 
-  if(workShiftsObject.type != 'new') {
+    let shifts = workShiftsObject.shifts; 
+    let string = ``; 
+    let subject = 'Work Schedule | New Shift(s)'; 
+    let fileHeading = writeStart() + "\n"; 
+    let fileEnding = writeEnding(); 
+    let indexMap = {monthIndex:0,dayIndex:1,yearIndex:2,startIndex:4,endIndex:6};
+    let stringObject; 
+    if(workShiftsObject.type != 'new') {
       indexMap.startIndex = 12;
       indexMap.endIndex =  14; 
       if(workShiftsObject.type == 'cancelled') {
-        subject = 'Schedule | Shifts Cancelled';  
-        // Email goes below
-        MailApp.sendEmail('',subject, `These Work shifts been Cancelled:\n\n${shifts}`);  
+        subject = 'Work Schedule | Shifts Cancelled';  
+        MailApp.sendEmail('',subject, `These Work shifts been Cancelled:\n\n${shifts}`); // Email goes in first position
         Logger.log("Shift Cancellation Email Sent"); 
         return ; 
       }
       else {
-        subject = 'Schedule | Shift Change'; 
+        subject = 'Work Schedule | Shift Change'; 
       }
     }  
     string += fileHeading; 
@@ -105,7 +104,7 @@ function writeShifts(workShiftsObject) {
       let year = shiftPieces[indexMap.yearIndex]; 
       let startShift = makeMilitary(shiftPieces[indexMap.startIndex]); 
       let endShift = makeMilitary(shiftPieces[indexMap.endIndex]); 
-      string += writeMiddle('Work',year.trim(),month,day,startShift,endShift); 
+      string += writeMiddle('VCU',year.trim(),month,day,startShift,endShift); 
       string += "\n"; 
     }
     string += fileEnding; 
@@ -116,42 +115,39 @@ function writeShifts(workShiftsObject) {
     return ; 
   }
   }
-  
 function createICS(filename,obj) {
   if(obj == undefined) {
     return ; 
-  } 
-  let fileInfo = {
+  } let fileInfo = {
      title:`${filename}`,
      mimeType: 'text/calendar'
     };
   let blob = Utilities.newBlob(obj.shiftString); 
   Drive.Files.insert(fileInfo, blob);
-  Logger.log("ICS File Created");  
+  Logger.log("ICS File Created"); 
 }
 function sendICS(filename, subject, email) {
-  let ICSFileID = getFileId(filename);
-  let ICSFile = DriveApp.getFileById(ICSFileID);
+  var ICSFileID = getFileId(filename);
+  var ICSFile = DriveApp.getFileById(ICSFileID);
   MailApp.sendEmail(`${email}`,subject,'Work Schedule',{
     attachments: [ICSFile],
     name: 'Attachment'
-  }); 
-  Logger.log('ICS File Sent'); 
+  }); Logger.log('ICS File Sent'); 
   Drive.Files.remove(ICSFileID); 
 } 
 function makeMilitary(time) { 
-    let isAfternoon = time.includes('p'); 
-    let notNoon = !(time.includes('12')); 
-    let hasMinutes = time.includes(':'); 
-    let times; 
-    let milTime; 
-    let minutes = '00';
-    let totalTime;  
+    var isAfternoon = time.includes('p'); 
+    var notNoon = !(time.includes('12')); 
+    var hasMinutes = time.includes(':'); 
+    var times; 
+    var milTime; 
+    var minutes = '00';
+    var totalTime;  
  	if(hasMinutes) { 
        times = time.split(':'); 
        milTime = times[0]; 
        minutes = times[1].match(/([0-9][0-9]|[0-9])/g);
-    }else {
+    }  else {
     	times = time.match(/([0-9][0-9]|[0-9])/g)
         milTime = times; 
     }
@@ -163,7 +159,7 @@ function makeMilitary(time) {
 	return totalTime.padStart(4,0);
 }
 function convertMonth(monthText) { 
-   let months = {
+   var months = {
     'Jan' : '01',
     'Feb' : '02',
     'Mar' : '03',
@@ -176,22 +172,21 @@ function convertMonth(monthText) {
     'Oct' : '10',
     'Nov' : '11',
     'Dec' : '12'
-    }
-   return months[monthText]; 
+    } return months[monthText]; 
 }
 function getFileId(name) { 
-  let files = DriveApp.getFiles(); 
+  var files = DriveApp.getFiles(); 
   while(files.hasNext()) { 
-     let file = files.next();
-     let filename = file.getName();
-     let fileID = file.getId(); 
+     var file = files.next();
+     var filename = file.getName();
+     var fileID = file.getId(); 
     if(name == filename) { 
        return fileID; 
     }    
   }
 }
 function writeStart() { 
-  let start = `BEGIN:VCALENDAR
+  var start = `BEGIN:VCALENDAR
 PRODID:-//Google Inc//Google Calendar 70.9054//EN
 VERSION:2.0
 CALSCALE:GREGORIAN
@@ -219,7 +214,7 @@ END:VTIMEZONE`
   return start;  
 }
 function writeMiddle(summary, year, month, day, start, end) { 
-  let middle = `BEGIN:VEVENT
+  var middle = `BEGIN:VEVENT
 DTSTART;TZID=America/New_York:${year}${month}${day}T${start}00
 DTEND;TZID=America/New_York:${year}${month}${day}T${end}00
 RRULE:FREQ=DAILY;COUNT=1
@@ -241,6 +236,6 @@ END:VEVENT`
  return middle;  
 }
 function writeEnding() { 
-   let end = 'END:VCALENDAR';
+   var end = 'END:VCALENDAR';
    return end; 
 }
